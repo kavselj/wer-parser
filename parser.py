@@ -18,7 +18,7 @@ def wertojson():
         json_data = json.loads(json.dumps(xmltodict.parse(werdata.read()), indent=1))
         # print(json_data["event"])
         # with open("20180319.json", 'w') as f:
-        #     f.write(json.dumps(parsed_wer, indent=4))
+        #     f.write(json.dumps(json_data, indent=4))
 
 def tournament_to_db():
 
@@ -53,6 +53,16 @@ def rounds_matches_to_db():
             else:
                 db_insert_matches(str(uuid.uuid4()),temp_round_uid,str(match["@person"]),None,int(match["@win"]),int(match["@loss"]),int(match["@draw"]),int(match["@outcome"]))
 
+def players_to_tournaments():
+
+    event = json_data["event"]
+    person_list = json_data["event"]["participation"]["person"]
+
+    for person in person_list:
+        print(person["@id"]+" - "+person["@first"]+" "+person["@last"])
+        deck = input('Enter deckname: ')
+        db_insert_players_to_tournaments(int(person["@id"]),str(event["@eventguid"]),str(deck))
+
 def pairings():
     plist = []
     dci = []
@@ -73,8 +83,19 @@ def pairings():
     with open("pairings.txt", 'w', encoding="utf-8") as f:
         f.write('\n'.join(plist))
 
+def check_duplicate():
+
+    # Check if the tournament is already in database.
+
+    tournament_uid = str(json_data["event"]["@eventguid"])
+    if tournament_uid != db_duplicate_check(tournament_uid)[0]:
+        tournament_to_db()
+        players_to_db()
+        rounds_matches_to_db()
+        players_to_tournaments()
+    else:
+        print(f"Tournament with ID {tournament_uid} already exists in the database!")
+
 wertojson()
-tournament_to_db()
-players_to_db()
-rounds_matches_to_db()
+check_duplicate()
 # pairings()

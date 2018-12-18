@@ -47,4 +47,12 @@ def db_insert_players_to_tournaments(player_uid,tournament_uid,deck):
     conn.commit()
     conn.close()
 
+def db_duplicate_check(tournament_uid):
+    conn = sqlite3.connect("lite.db")
+    cur = conn.cursor()
+    cur.execute("SELECT uid FROM tournaments WHERE uid=?",(tournament_uid,))
+    t_uid=cur.fetchone()
+    conn.close()
+    return t_uid
+
 create_table()
