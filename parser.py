@@ -8,17 +8,29 @@ import xmltodict
 import sqlite3
 from db import *
 import uuid
+import os
 
-def wertojson():
+def parse_all():
+    opendecks()
+    for filename in os.listdir('ELO'):
+        wertojson(filename)
+        check_duplicate()
+    print("All tournaments successfully parsed!")
+
+def wertojson(filename):
 
     # Open .wer file and output it as JSON
 
-    with open("20180319.wer", encoding="utf-8") as werdata:
+    with open("ELO/{}".format(filename), encoding="utf-8") as werdata:
         global json_data
         json_data = json.loads(json.dumps(xmltodict.parse(werdata.read()), indent=1))
-        # print(json_data["event"])
-        # with open("20180319.json", 'w') as f:
-        #     f.write(json.dumps(json_data, indent=4))
+
+def opendecks():
+
+    with open("decks.json", encoding="utf-8") as decks:
+
+        global deck_data
+        deck_data = json.loads(decks.read())
 
 def tournament_to_db():
 
@@ -48,7 +60,7 @@ def rounds_matches_to_db():
         db_insert_rounds(temp_round_uid,str(rnd["@date"]),int(rnd["@number"]),str(event["@eventguid"]))
         for match in match_list:
             # print(temp_round_uid)
-            if match["@outcome"] != "3":
+            if match["@outcome"] not in ("3","5"):
                 db_insert_matches(str(uuid.uuid4()),temp_round_uid,str(match["@person"]),str(match["@opponent"]),int(match["@win"]),int(match["@loss"]),int(match["@draw"]),int(match["@outcome"]))
             else:
                 db_insert_matches(str(uuid.uuid4()),temp_round_uid,str(match["@person"]),None,int(match["@win"]),int(match["@loss"]),int(match["@draw"]),int(match["@outcome"]))
@@ -57,45 +69,38 @@ def players_to_tournaments():
 
     event = json_data["event"]
     person_list = json_data["event"]["participation"]["person"]
+    dates = deck_data["tournament"]
 
-    for person in person_list:
-        print(person["@id"]+" - "+person["@first"]+" "+person["@last"])
-        deck = input('Enter deckname: ')
-        db_insert_players_to_tournaments(int(person["@id"]),str(event["@eventguid"]),str(deck))
-
-def pairings():
-    plist = []
-    dci = []
-    names = []
-
-    person_list = json_data["event"]["participation"]["person"]
-    for person in person_list:
-        dci.append(person["@id"])
-        names.append(person["@first"]+" "+person["@last"])
-    players = dict(zip(dci, names))
-
-    event_list = json_data["event"]["matches"]["round"]
-    for event in event_list:
-        match_list = event["match"]
-        for match in match_list:
-            if match["@win"] == "-1":
-                plist.append(players.get(match["@person"], "")+" <=> "+players.get(match["@opponent"], ""))
-    with open("pairings.txt", 'w', encoding="utf-8") as f:
-        f.write('\n'.join(plist))
+    # for person in person_list:
+        # print(person["@id"]+" - "+person["@first"]+" "+person["@last"])
+    for date in dates:
+        if date["@date"] == event["@startdate"]:
+            for deck in date["players"]:
+                deck_id = db_deck_check(deck.get("@deck"))
+                # print(deck_id)
+                if deck_id == None:
+                    temp_deck_uid = uuid.uuid4()
+                    db_insert_decks(str(temp_deck_uid),str(deck.get("@deck")))
+                    db_insert_players_to_tournaments(int(deck["@dci"]),str(event["@eventguid"]),str(temp_deck_uid))
+                else:
+                    db_insert_players_to_tournaments(int(deck["@dci"]),str(event["@eventguid"]),str(deck_id[0]))
 
 def check_duplicate():
 
     # Check if the tournament is already in database.
 
     tournament_uid = str(json_data["event"]["@eventguid"])
-    if tournament_uid != db_duplicate_check(tournament_uid)[0]:
+    if db_duplicate_check(tournament_uid) == None:
         tournament_to_db()
         players_to_db()
         rounds_matches_to_db()
         players_to_tournaments()
-    else:
-        print(f"Tournament with ID {tournament_uid} already exists in the database!")
+        print(f"Tournament ID {tournament_uid} successfully entered into the database!")
+    elif tournament_uid == db_duplicate_check(tournament_uid)[0]:
+        print(f"Tournament ID {tournament_uid} already exists in the database!")
 
-wertojson()
-check_duplicate()
+parse_all()
+# wertojson()
+# players_to_tournaments()
+# check_duplicate()
 # pairings()
