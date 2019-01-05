@@ -53,12 +53,11 @@ def rounds_matches_to_db():
 
     event = json_data["event"]
     round_list = json_data["event"]["matches"]["round"]
-    match_list = json_data["event"]["matches"]["round"][0]["match"]
 
     for rnd in round_list:
         temp_round_uid = str(uuid.uuid4())
         db_insert_rounds(temp_round_uid,str(rnd["@date"]),int(rnd["@number"]),str(event["@eventguid"]))
-        for match in match_list:
+        for match in rnd["match"]:
             # print(temp_round_uid)
             if match["@outcome"] not in ("3","5"):
                 db_insert_matches(str(uuid.uuid4()),temp_round_uid,str(match["@person"]),str(match["@opponent"]),int(match["@win"]),int(match["@loss"]),int(match["@draw"]),int(match["@outcome"]))
@@ -100,7 +99,3 @@ def check_duplicate():
         print(f"Tournament ID {tournament_uid} already exists in the database!")
 
 parse_all()
-# wertojson()
-# players_to_tournaments()
-# check_duplicate()
-# pairings()
