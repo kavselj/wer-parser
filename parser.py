@@ -11,12 +11,22 @@ import uuid
 import os
 import glicko2
 
+'''
+You can process a single file or do a batch job of a specific folder.
+I also log the decks played so you can see how well certain decks performed.
+'''
+
 def parse_all():
     opendecks()
     for filename in os.listdir('ELO'):
         wertojson(filename)
         check_duplicate()
     print("All tournaments successfully parsed!")
+
+'''
+Once the .wer file is opened, it is converted from XML into JSON and
+saved as global variable to be later processed as desired.
+'''
 
 def wertojson(filename):
 
@@ -26,6 +36,13 @@ def wertojson(filename):
         global json_data
         json_data = json.loads(json.dumps(xmltodict.parse(werdata.read()), indent=1))
 
+'''
+Same goes for decks file except it should already be in JSON format
+
+TODO: Make a function that allows entering deck info on the spot
+        rather than via JSON file.
+'''
+
 def opendecks():
 
     with open("decks.json", encoding="utf-8") as decks:
@@ -33,19 +50,32 @@ def opendecks():
         global deck_data
         deck_data = json.loads(decks.read())
 
+'''
+Adds relevant tournament info such as event UID, start date, format played
+and number of rounds.
+'''
+
 def tournament_to_db():
 
     event = json_data["event"]
     db_insert_tournament(str(event["@eventguid"]),str(event["@startdate"]),str(event["@format"]).title(),int(event["@numberofrounds"]))
 
-def players_to_db():
+'''
+Parses the players in the tournament and adds them to the DB
+if they don't exist yet. For the purposes of Glicko rating system,
+every player is also assigned default rating values.
+'''
 
-    # Parse the players in the tournament and add them to the DB
-    # if they don't exist yet.
+def players_to_db():
 
     person_list = json_data["event"]["participation"]["person"]
     for person in person_list:
         db_insert_players(int(person["@id"]),str(person["@first"]),str(person["@last"]),str(person["@country"]),str(1500.0), str(350.0), str(0.06))
+
+'''
+Parse the rounds and matches. Bye's are added as well,
+although they are ignored when calculating Glicko rating.
+'''
 
 def rounds_matches_to_db():
 
@@ -65,6 +95,11 @@ def rounds_matches_to_db():
             else:
                 db_insert_matches(str(uuid.uuid4()),temp_round_uid,str(match["@person"]),None,int(match["@win"]),int(match["@loss"]),int(match["@draw"]),int(match["@outcome"]))
 
+'''
+Fills out the relational SQL table which contains tournament and player
+pairs as well as the decks played.
+'''
+
 def players_to_tournaments():
 
     event = json_data["event"]
@@ -82,6 +117,11 @@ def players_to_tournaments():
                     db_insert_players_to_tournaments(int(deck["@dci"]),str(event["@eventguid"]),str(temp_deck_uid))
                 else:
                     db_insert_players_to_tournaments(int(deck["@dci"]),str(event["@eventguid"]),str(deck_id[0]))
+
+'''
+After current tournament is added to the databse,
+Glicko rating calculations are performed.
+'''
 
 def update_glicko():
 
@@ -204,6 +244,10 @@ def update_glicko():
             str(newplayers.get(player)[1]),
             str(newplayers.get(player)[2])
         )
+
+'''
+Duplicate check to prevent the same tournament being added multiple times.
+'''
 
 def check_duplicate():
 
