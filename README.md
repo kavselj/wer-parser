@@ -29,7 +29,7 @@ v main.py imaš naslednjo kodo, ki se požene:
 
 fajli:
     
-    .gitignore = gitignore, predvidevam da veš kaj dela, dodal sem 
+    .gitignore = gitignore, predvidevam da veš kaj dela, dodal sem standarden python template poleg že obstoječih zadev
     
     __init__.py = predvidevam da veš kaj to dela, stvar sem spisal "kot se šika", če/ko se bo stvar razvijala dalje
     
